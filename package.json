@@ -4,8 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "build": "ncc build index.js && pkg ./dist/index.js --out-path ./build",
-    "buildtest": "pkg indexTest.js --out-path ./build"
+    "build": "ncc build index.js && pkg ./dist/index.js --no-bytecode --public-packages \"*\" --public --out-path \"./build\""
   },
   "author": "Faywynn",
   "license": "MIT",
