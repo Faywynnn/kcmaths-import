@@ -1,5 +1,5 @@
 # kcmaths-import
-Permet de télécharger l'ensemble des fichiers du site **[kcmaths](https://kcmaths.com)** en les triants dans des dossiers par chapitre.
+Ce script permet de télécharger l'ensemble des fichiers du site **[kcmaths](https://kcmaths.com)** en les triants dans des dossiers par chapitre.
 
 ---
 
