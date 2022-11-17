@@ -6,6 +6,9 @@ const FormData = require('form-data');
 
 const devMode = true;
 
+
+const curentVersion = 'v1.1.0'; //Ne pas modifier
+
 prompt.start();
 
 const separator = "================================================================================"
@@ -16,15 +19,48 @@ const separatorText = (text) => {
 };
 
 
-console.log(`\n${separator}\n`);
-start();
-function start() {
+startText(lastVersion());
+
+async function lastVersion () {
+	const response = await axios.get('https://github.com/Faywynnn/kcmaths-import/releases/latest');
+	const versionUrl = response?.request?.res?.responseUrl;
+
+	if (!versionUrl) {
+		return curentVersion
+	}
+
+	const version = versionUrl.split('/')[versionUrl.split('/').length - 1]
+	return version;
+}
+
+
+async function startText(version) {
+
+	console.log('');
+
+	if ((await version) !== curentVersion) {
+		console.log(separatorText("MISE A JOUR"));
+		console.log(`  Une nouvelle version est disponible (${await version}) !`);
+		console.log(`  Vous pouvez la télécharger à l'adresse suivante:\n   - https://github.com/Faywynnn/kcmaths-import/releases/latest`);
+		console.log(separator + '\n')
+	}
+
+	console.log(separatorText('KCMATHS Import'));
+	console.log("  Ce script permet de télécharger l'ensemble des fichiers du site kcmaths  \n  en les triants dans des dossiers par chapitre.")
+	console.log("  Entrer votre nom d'utilisateur et votre mot de passe (du site kcmaths) pour  \n  continuer.")
+	console.log(separator + '\n')
+
+	start();
+
+}
+function start(defaultUsername = '') {
 	var schema = {
 		properties: {
 		"Nom d'utilisateur": {
 			pattern: /^[a-zA-Z]+$/,
 			message: "Le nom d'utilisateur doit contenir que des caracteres du type [a-zA-Z]",
-			required: true
+			required: true,
+			default: defaultUsername
 		},
 		"Mot de passe": {
 			hidden: true,
@@ -47,7 +83,7 @@ function start() {
 async function main (userName, userPassword) {
 
 	function logStart() {
-		console.log(`\n${separatorText("Démarrage de l'application")}\n`);
+		console.log(`${separatorText("Démarrage de l'application")}\n`);
 		console.log(`  Nom d'utilisateur: ${userName}`);
 		console.log(`  Mot de passe: ${userPassword.replace(/./g, '*')}`);
 		console.log(`\n${separator}\n`);
@@ -60,13 +96,15 @@ async function main (userName, userPassword) {
 		console.log(`\n${separator}\n`);
 	}
 
-	function checkResponseCode(code) {
+	async function checkResponseCode(code) {
 		if (code === 200) {
 			return true;
 		} if (code === 429) {
 			console.log("  Erreur: Trop de requetes, veuillez réessayer plus tard");
+			await setTimeout(() => {}, 5000);
 		} else {
 			console.log("  Erreur: Un erreur est survenue, veuillez réessayer plus tard. Code: ", code);
+			await setTimeout(() => {}, 5000);
 		}
 		false
 	}
@@ -83,8 +121,8 @@ async function main (userName, userPassword) {
 				data: bodyFormData,
 				headers: { "Content-Type": "multipart/form-data" },
 			})
-			.then(function (res) {
-				if (checkResponseCode(res.status)) {
+			.then(async function (res) {
+				if (await checkResponseCode(res.status)) {
 					if (res.data.includes("Pas de connexion, pas de crampons")) {
 						resolve(false)
 					}
@@ -92,6 +130,12 @@ async function main (userName, userPassword) {
 					const phpSessionId = cookie.substring(cookie.indexOf("=") + 1, cookie.indexOf(";"));
 					resolve(phpSessionId);
 				}
+			})
+			.catch((err) => {
+				console.log(`\n${separator}\n`);
+				console.log("  Erreur: Un erreur est survenue, veuillez réessayer plus tard.\n  Vérifier votre connexion internet");
+				console.log(`\n${separator}\n`);
+				start();
 			})
 		});
 	}
@@ -101,12 +145,11 @@ async function main (userName, userPassword) {
 		console.log(`\n${separator}\n`);
 		console.log(`  Le nom d'utilisateur ou le mot de passe est incorrect`);
 		console.log(`\n${separator}\n`);
-		start();
+		start(userName);
 		return
 	}
 
 	logStart();
-
 
 	const getHtml = async (url) => {
 		return new Promise((resolve, reject) => {
@@ -124,8 +167,8 @@ async function main (userName, userPassword) {
 						"Cookie": `PHPSESSID=${phpSessionId}`
 					},
 				})
-				.then(function (res) {
-					if (checkResponseCode(res.status)) {
+				.then(async function (res) {
+					if (await checkResponseCode(res.status)) {
 						resolve(res.data);
 					}
 				})
@@ -205,9 +248,7 @@ async function main (userName, userPassword) {
 				fileName = fileName.substring(1, fileName.length);
 			}
 
-				
-
-
+			
 			const filePath = `${documentPath}/${fileName}.pdf`;
 
 			if (!fs.existsSync(filePath)) {
@@ -224,7 +265,8 @@ async function main (userName, userPassword) {
 				})
 				.then(function (res) {
 					res.data.pipe(fs.createWriteStream(filePath))
-					console.log(`Fichier téléchargé: ${fileName}`)
+					console.log(`  Fichier téléchargé: ${fileName}`)
+					setTimeout(() => {}, 5000)
 				})
 			}
 		}
