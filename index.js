@@ -1,4 +1,5 @@
-const fs = require('fs'); const prompt = require('prompt');
+const fs = require('fs');
+const prompt = require('prompt');
 const cheerio = require('cheerio');
 const axios = require('axios');
 const FormData = require('form-data');
