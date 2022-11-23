@@ -4,21 +4,51 @@ const cheerio = require('cheerio');
 const axios = require('axios');
 const FormData = require('form-data');
 
-const curentVersion = 'v1.1.0'; //Ne pas modifier
+const curentVersion = 'v1.1.1'; //Ne pas modifier
 
 prompt.start();
 
 const separator = "=".repeat(process.stdout.columns)
 
-const separatorText = (text) => {
+// Log a separator with a text
+function separatorTextLog (text) {
     const textLength = text.length;
     const separatorLength = separator.length - (textLength + 2);
-    return separator.substring(0, (separatorLength / 2)) + " " + text + " " + separator.substring(0, (separatorLength % 2) + (separatorLength / 2));
+    console.log(separator.substring(0, (separatorLength / 2)) + " " + text + " " + separator.substring(0, (separatorLength % 2) + (separatorLength / 2)));
 };
 
+// Log a separator
+function separatorLog () {
+	console.log(separator);
+};
 
-startText(lastVersion());
+// Log text, welle displayed
+function textLog (t, space) {
+	let text = t;
+	//Log text then go to the next line if > separator length
+	while (text.length > separator.length) {
+		//Get the first part of the text that fit in the word
+		const toLog = text.substring(0, separator.length - space * 2);
+		//Get the last space in the text
+		let lastSpace = toLog.lastIndexOf(' ');
 
+		// If there is no space in the text
+		// Then log the text and go to the next line
+		if (lastSpace === -1) {
+			lastSpace = separator.length - space * 2;
+		}
+
+		//Log the text
+		console.log(" ".repeat(space) + text.substring(0, lastSpace));
+
+		//Remove the text that has been logged
+		text = text.substring(lastSpace + 1);
+	}
+	console.log(" ".repeat(space) + text);
+}
+
+
+// Get the last version of the script on github
 async function lastVersion() {
     const response = await axios.get('https://github.com/Faywynnn/kcmaths-import/releases/latest');
     const versionUrl = response?.request?.res?.responseUrl;
@@ -30,29 +60,49 @@ async function lastVersion() {
     const version = versionUrl.split('/')[versionUrl.split('/').length - 1]
     return version;
 }
-
-
+// Log if the version is not up to date
 async function startText(version) {
 
-    console.log('');
+	textLog('', 0); // Empty line
 
     if ((await version) !== curentVersion) {
-        console.log(separatorText("MISE A JOUR"));
-        console.log(`  Une nouvelle version est disponible (${await version}) !`);
-        console.log(`  Vous pouvez la télécharger à l'adresse suivante:\n   - https://github.com/Faywynnn/kcmaths-import/releases/latest`);
-        console.log(separator + '\n')
+		separatorTextLog("MISE A JOUR");
+        textLog(`Une nouvelle version est disponible (${await version}) !`, 2);
+        textLog(`Vous pouvez la télécharger à l'adresse suivante:`, 2);
+		textLog(`- https://github.com/Faywynnn/kcmaths-import/releases/latest`, 4);
+        separatorLog();
     }
 
-    console.log(separatorText('KCMATHS Import'));
-    console.log("  Ce script permet de télécharger l'ensemble des fichiers du site kcmaths  \n  en les triants dans des dossiers par chapitre.")
-    console.log("  Entrer votre nom d'utilisateur et votre mot de passe (du site kcmaths) pour  \n  continuer.")
-    console.log(separator + '\n')
+	textLog('', 0); // Empty line
+
+    separatorTextLog('KCMATHS Import');
+
+	textLog('', 0); // Empty line
+
+	textLog("Ce script permet de télécharger l'ensemble des fichiers du site kcmaths en les triants dans des dossiers par chapitre.", 2);
+
+	textLog('', 0); // Empty line
+
+	textLog("Entrer le chemin d'accès où vous voulez télécharger les fichiers.", 2);
+	textLog(`- Le chemin d'accès par défaut est: \"${process.cwd()}\". Pour l'utiliser cliquer sur Entrer.`, 4);
+	textLog("- Sinon vous devez entrer un chemin d'accès valide absolue", 4);
+	textLog("- Racourcis: entrer \"\\\\\" ou \"//\" au début du chemin pour continuer après le chemin d'accès par défaut.", 4);
+	
+	textLog('', 0); // Empty line
+
+    textLog("Puis entrer votre nom d'utilisateur et votre mot de passe.", 2)
+	textLog("- Le nom d'utilisateur et le mot de passe sont ceux utilisés pour vous connecter sur le site kcmaths.", 4);
+
+	textLog('', 0); // Empty line
+
+    separatorLog();
 
     start();
-
 }
 
-async function start(defaultUsername = '') {
+
+// Ask for the username and password
+async function start({defaultUsername, defaultPath} = {defaultUsername: "", defaultPath: process.cwd()}) {
     const schema = {
         properties: {
             "Nom d'utilisateur": {
@@ -71,23 +121,39 @@ async function start(defaultUsername = '') {
 
     const path_schema = {
         properties: {
-            "Chemin d'accès (absolue)": {
+            "Chemin d'accès": {
                 hidden: false,
-                required: true
+                required: true,
+				default: defaultPath
             }
         }
     }
 
-    let downloadPath;
+	textLog('', 0); // Empty line
 
-    do {
-        await new Promise((resolve, _) => {
-            prompt.get(path_schema, function(_, result) {
-                downloadPath = result["Chemin d'accès (absolue)"];
-                resolve();
-            })
-        })
-    } while (!fs.existsSync(downloadPath))
+    let downloadPath;
+	await new Promise((resolve, _) => {
+		prompt.get(path_schema, function(_, result) {
+			const res = result["Chemin d'accès"];
+
+			if (res.startsWith('//') || res.startsWith('\\\\')) {
+				downloadPath = defaultPath + `\\` + res.substring(2);
+			} else {
+				downloadPath = res;
+			}
+			resolve();
+		})
+	})
+
+    while (!fs.existsSync(downloadPath)) {
+		textLog("Le chemin d'accès n'existe pas, veuillez entrer un chemin d'accès valide.");
+		await new Promise((resolve, _) => {
+			prompt.get(path_schema, function(_, result) {
+				downloadPath = result["Chemin d'accès"];
+				resolve();
+			})
+		})
+    } 
 
     prompt.get(schema, function(err, result) {
         if (err) { return onErr(err); }
@@ -99,24 +165,27 @@ async function start(defaultUsername = '') {
     });
 }
 
-
+// Main function
 async function main(userName, userPassword, downloadPath) {
 
     function logStart() {
-        console.log(`${separatorText("Démarrage de l'application")}\n`);
-        console.log(`  Chemin d'accès: ${downloadPath}`);
-        console.log(`  Nom d'utilisateur: ${userName}`);
-        console.log(`  Mot de passe: ${userPassword.replace(/./g, '*')}`);
-        console.log(`\n${separator}\n`);
+        separatorTextLog("Démarrage de l'application", 2);
+		textLog('', 0); // Empty line
+        textLog(`Chemin d'accès: \"${downloadPath}\"`, 2);
+        textLog(`Nom d'utilisateur: ${userName}`, 2);
+        textLog(`Mot de passe: ${userPassword.replace(/./g, '*')}`, 2);
+		textLog('', 0); // Empty line
+        separatorLog();
+		textLog('', 0); // Empty line
     }
 
     async function checkResponseCode(code) {
         if (code === 200) {
             return true;
         } if (code === 429) {
-            console.log("  Erreur: Trop de requetes, veuillez réessayer plus tard");
+            textLog("Erreur: Trop de requetes, veuillez réessayer plus tard", 2);
         } else {
-            console.log("  Erreur: Un erreur est survenue, veuillez réessayer plus tard. Code: ", code);
+            textLog(`Erreur: Un erreur est survenue, veuillez réessayer plus tard. Code: ${code}`, 2);
         }
         false
     }
@@ -144,9 +213,9 @@ async function main(userName, userPassword, downloadPath) {
                     }
                 })
                 .catch((_) => {
-                    console.log(`\n${separator}\n`);
-                    console.log("  Erreur: Un erreur est survenue, veuillez réessayer plus tard.\n  Vérifier votre connexion internet");
-                    console.log(`\n${separator}\n`);
+                    separatorLog();
+                    textLog("Erreur: Un erreur est survenue, veuillez réessayer plus tard. Vérifier votre connexion internet.", 2);
+                    separatorLog();
                     start();
                 })
         });
@@ -154,10 +223,12 @@ async function main(userName, userPassword, downloadPath) {
 
     const phpSessionId = await getPhpSessionId(userName, userPassword);
     if (!phpSessionId) {
-        console.log(`\n${separator}\n`);
-        console.log(`  Le nom d'utilisateur ou le mot de passe est incorrect`);
-        console.log(`\n${separator}\n`);
-        start(userName);
+        separatorLog();
+		textLog('', 0); // Empty line
+        textLog(`Le nom d'utilisateur ou le mot de passe est incorrect`, 2);
+		textLog('', 0); // Empty line
+		separatorLog();
+        start({defaultUsername: userName, defaultPath: downloadPath});
         return
     }
 
@@ -276,11 +347,14 @@ async function main(userName, userPassword, downloadPath) {
                     responseType: 'stream'
                 })
                     .then(function(res) {
-                        res.data.pipe(fs.createWriteStream(filePath))
-                        console.log(`  Fichier téléchargé: ${fileName}`)
-                        setTimeout(() => { }, 5000)
+                        res.data.pipe(fs.createWriteStream(filePath));
+                        textLog(`Fichier téléchargé: ${fileName}`, 2);
                     })
             }
         }
     }
 }
+
+
+
+startText(lastVersion());
