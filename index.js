@@ -4,7 +4,7 @@ const cheerio = require('cheerio');
 const axios = require('axios');
 const FormData = require('form-data');
 
-const curentVersion = 'v1.1.1'; //Ne pas modifier
+const curentVersion = 'v1.2.0'; //Ne pas modifier
 
 prompt.start();
 
