@@ -1,10 +1,11 @@
 {
   "name": "script",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "index.ts",
+  "type": "commonjs",
   "scripts": {
-    "start": "node index.js",
-    "build": "ncc build index.js && pkg ./dist/index.js --no-bytecode --public-packages \"*\" --public --out-path \"./build\""
+    "startDev": "tsc && node ./build/index.js",
+    "build": "tsc && ncc build ./build/index.js && pkg ./dist/index.js --no-bytecode --public-packages \"*\" --public --out-path \"./compile\""
   },
   "author": "Faywynn",
   "license": "MIT",
@@ -22,5 +23,10 @@
       "node12-linux-x64",
       "node12-win-x64"
     ]
+  },
+  "devDependencies": {
+    "@types/axios": "^0.14.0",
+    "@types/cheerio": "^0.22.31",
+    "@types/prompt": "^1.1.4"
   }
 }

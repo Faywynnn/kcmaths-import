@@ -1,51 +1,21 @@
-const fs = require('fs');
-const prompt = require('prompt');
-const cheerio = require('cheerio');
-const axios = require('axios');
-const FormData = require('form-data');
+import fs from 'fs';
+import prompt from 'prompt';
+import cheerio from 'cheerio';
+import axios from 'axios';
+import FormData from 'form-data'; 
+
+import functions from "./functions";
+
+const {
+	separatorTextLog,
+	separatorLog,
+	textLog
+} = functions;
 
 const curentVersion = 'v1.2.0'; //Ne pas modifier
 
 prompt.start();
 
-const separator = "=".repeat(process.stdout.columns)
-
-// Log a separator with a text
-function separatorTextLog (text) {
-    const textLength = text.length;
-    const separatorLength = separator.length - (textLength + 2);
-    console.log(separator.substring(0, (separatorLength / 2)) + " " + text + " " + separator.substring(0, (separatorLength % 2) + (separatorLength / 2)));
-};
-
-// Log a separator
-function separatorLog () {
-	console.log(separator);
-};
-
-// Log text, welle displayed
-function textLog (t, space) {
-	let text = t;
-	//Log text then go to the next line if > separator length
-	while (text.length > separator.length) {
-		//Get the first part of the text that fit in the word
-		const toLog = text.substring(0, separator.length - space * 2);
-		//Get the last space in the text
-		let lastSpace = toLog.lastIndexOf(' ');
-
-		// If there is no space in the text
-		// Then log the text and go to the next line
-		if (lastSpace === -1) {
-			lastSpace = separator.length - space * 2;
-		}
-
-		//Log the text
-		console.log(" ".repeat(space) + text.substring(0, lastSpace));
-
-		//Remove the text that has been logged
-		text = text.substring(lastSpace + 1);
-	}
-	console.log(" ".repeat(space) + text);
-}
 
 
 // Get the last version of the script on github
@@ -61,7 +31,7 @@ async function lastVersion() {
     return version;
 }
 // Log if the version is not up to date
-async function startText(version) {
+async function startText(version: Promise<string>) {
 
 	textLog('', 0); // Empty line
 
@@ -131,45 +101,46 @@ async function start({defaultUsername, defaultPath} = {defaultUsername: "", defa
 
 	textLog('', 0); // Empty line
 
-    let downloadPath;
-	await new Promise((resolve, _) => {
+    let downloadPath: string = await new Promise((resolve, _) => {
 		prompt.get(path_schema, function(_, result) {
-			const res = result["Chemin d'accès"];
-
-			if (res.startsWith('//') || res.startsWith('\\\\')) {
-				downloadPath = defaultPath + `\\` + res.substring(2);
+			const res = result["Chemin d'accès"]?.toString();
+			if (res !== undefined && (res.startsWith('//') || res.startsWith('\\\\'))) {
+				resolve(defaultPath + `\\` + res.substring(2))
 			} else {
-				downloadPath = res;
+				resolve(res)
 			}
-			resolve();
 		})
 	})
 
     while (!fs.existsSync(downloadPath)) {
-		textLog("Le chemin d'accès n'existe pas, veuillez entrer un chemin d'accès valide.");
-		await new Promise((resolve, _) => {
+		textLog("Le chemin d'accès n'existe pas, veuillez entrer un chemin d'accès valide.", 2);
+		downloadPath = await new Promise((resolve, _) => {
 			prompt.get(path_schema, function(_, result) {
-				downloadPath = result["Chemin d'accès"];
-				resolve();
+				const res = result["Chemin d'accès"]?.toString();
+				if (res !== undefined && (res.startsWith('//') || res.startsWith('\\\\'))) {
+					resolve(defaultPath + `\\` + res.substring(2))
+				} else {
+					resolve(res)
+				}
 			})
 		})
     } 
 
     prompt.get(schema, function(err, result) {
-        if (err) { return onErr(err); }
+        if (err) { return err; }
 
-        const userName = result["Nom d'utilisateur"];
-        const userPassword = result["Mot de passe"];
+        const userName = result["Nom d'utilisateur"].toString();
+        const userPassword = result["Mot de passe"].toString();
 
         main(userName, userPassword, downloadPath);
     });
 }
 
 // Main function
-async function main(userName, userPassword, downloadPath) {
+async function main(userName: string, userPassword: string, downloadPath: string) {
 
     function logStart() {
-        separatorTextLog("Démarrage de l'application", 2);
+        separatorTextLog("Démarrage de l'application");
 		textLog('', 0); // Empty line
         textLog(`Chemin d'accès: \"${downloadPath}\"`, 2);
         textLog(`Nom d'utilisateur: ${userName}`, 2);
@@ -179,7 +150,7 @@ async function main(userName, userPassword, downloadPath) {
 		textLog('', 0); // Empty line
     }
 
-    async function checkResponseCode(code) {
+    async function checkResponseCode(code: number) {
         if (code === 200) {
             return true;
         } if (code === 429) {
@@ -190,7 +161,7 @@ async function main(userName, userPassword, downloadPath) {
         false
     }
 
-    async function getPhpSessionId(userName, userPassword) {
+    async function getPhpSessionId(userName: string, userPassword: string) {
         return new Promise((resolve, _) => {
             var bodyFormData = new FormData();
             bodyFormData.append('nom_session', userName);
@@ -207,8 +178,9 @@ async function main(userName, userPassword, downloadPath) {
                         if (res.data.includes("Pas de connexion, pas de crampons")) {
                             resolve(false)
                         }
-                        const cookie = res.headers['set-cookie'][0];
-                        const phpSessionId = cookie.substring(cookie.indexOf("=") + 1, cookie.indexOf(";"));
+                        const cookie = res.headers['set-cookie'] ? res.headers['set-cookie'][0] : undefined;
+
+                        const phpSessionId = cookie ? cookie.substring(cookie.indexOf("=") + 1, cookie.indexOf(";")) : undefined;
                         resolve(phpSessionId);
                     }
                 })
@@ -234,7 +206,7 @@ async function main(userName, userPassword, downloadPath) {
 
     logStart();
 
-    const getHtml = async (url) => {
+    const getHtml = (url: string): Promise<string> => {
         return new Promise((resolve, reject) => {
             try {
                 var bodyFormData = new FormData();
@@ -264,22 +236,25 @@ async function main(userName, userPassword, downloadPath) {
     }
 
     const documentsPage = await getHtml("documents_sommaire.php"); // fs.readFileSync('./html.html', 'utf8');
-    const documentsPageHtml = cheerio.load(documentsPage, null, false);
+    const documentsPageHtml = cheerio.load(documentsPage);
 
     // Get the div with the class "accueil"
-    const divAccueil = documentsPageHtml("div.accueil");
+    const divAccueil: any = documentsPageHtml("div.accueil");
+
+	// documents type [['string', {link: string, title: string}, {link: string, title: string}, ...], ...]
     var documents = [];
 
-    for (element of divAccueil.children()) {
+
+    for (const element of divAccueil.children()) {
         if (element.name === 'h1') {
             documents.push([element.children[0].data])
         }
         else if (element.name === 'table' && element.children[1].name === 'tbody') {
-            for (tr of element.children[1].children) {
+            for (const tr of element.children[1].children) {
                 if (tr.name === 'tr') {
                     const tdLink = tr.children[0];
                     const tdTitle = tr.children[2];
-                    const tdLinkChildren = tdLink.children.filter(x => x.name === 'a');
+                    const tdLinkChildren = tdLink.children.filter((x: {name: string}) => x.name === 'a'); 
 
                     const link = tdLinkChildren[0].attribs.href;
                     const title = tdTitle.children[0].data;
@@ -293,11 +268,13 @@ async function main(userName, userPassword, downloadPath) {
         }
     }
 
+	console.log(documents);
 
-    for (folder of documents) {
+
+    for (const folder of documents) {
         const folderName = folder[0];
 
-        for (document of folder.slice(1)) {
+        for (const document of folder.slice(1)) {
             const documentName = document.title;
             const documentLink = document.link;
 
@@ -307,7 +284,7 @@ async function main(userName, userPassword, downloadPath) {
 
             const chapter_n = documentName.includes("Chapitre") ? parseInt(documentName.split("Chapitre ")[1]) : null;
 
-            function checkFolder(folderPath) {
+            function checkFolder(folderPath: string) {
                 if (!fs.existsSync(folderPath)) {
                     fs.mkdirSync(folderPath);
                 }

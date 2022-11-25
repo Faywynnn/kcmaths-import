@@ -1,5 +1,12 @@
 build/
 node_modules/
 .env
+
 dist/
 test/
+compile/
+
+# Yarn
+yarn-error.log
+yarn-error.logs
+yarn.lock
